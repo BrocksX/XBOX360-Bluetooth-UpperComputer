@@ -47,7 +47,7 @@ XINPUT_STATE State;
 接下来就是检查各个按键和遥感的输入状态，发送相应的数据帧
 
 ```
-ProcessFaceButtons(State);
+				ProcessFaceButtons(State);
 				ProcessPadButtons(State);
 				ProcessShoulderButtons(State);
 				ProcessThumbButtons(State);
