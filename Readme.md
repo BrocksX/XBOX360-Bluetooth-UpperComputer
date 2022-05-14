@@ -1,7 +1,7 @@
 # 微软XBOX360手柄控制的蓝牙上位机开源
 
 ###  **介绍**
-由于智能车的操控手有切换观察视角的要求，考虑到电脑太笨重，所以放弃传统的键盘/键鼠操控模式，采用微软的XBOX360手柄作为信号输入源
+由于智能车的操控手有切换观察视角的要求，考虑到电脑太笨重，所以放弃传统的键盘/键鼠操控模式，就地取材，采用微软的XBOX360手柄作为信号输入源
 
 ### 说明
 本程序需要用到xinput.h头文件和xinput.lib，请确保电脑上有相关环境。微软官方介绍文档 https://docs.microsoft.com/zh-cn/windows/win32/api/xinput/nf-xinput-xinputgetstate?redirectedfrom=MSDN
@@ -13,8 +13,8 @@
 HANDLE hCom = CreateFile("\\\\.\\COM6", GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL); // 改COM口
 	if (hCom == INVALID_HANDLE_VALUE)
 	{
-		/*std::cout << "Port unavailable!" << std::endl;
-		return 0;*/
+		std::cout << "Port unavailable!" << std::endl;
+		return 0;
 	}
 	DCB dcb;
 	GetCommState(hCom, &dcb);
