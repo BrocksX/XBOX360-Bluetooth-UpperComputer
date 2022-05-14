@@ -69,11 +69,7 @@ short LthumbPosX = State.Gamepad.sThumbLX / 10;
 	int Rdistance = RthumbPosX * RthumbPosX + RthumbPosY * RthumbPosY;
 	//std::cout << "Ldistance: " << Ldistance << std::endl;
 	if (Ldistance < 100000){}//死区
-	else if (Ldistance < 6000000 && Ldistance > 100000)
-	{
-		///
-	}
-	else if (Ldistance > 6000000)
+	else if (Ldistance > 100000)
 	{
 	    ///
 	}
