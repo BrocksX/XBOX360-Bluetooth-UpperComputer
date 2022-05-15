@@ -1,9 +1,15 @@
 # 微软XBOX360手柄控制的蓝牙上位机开源
 
 ###  **介绍**
-由于智能车的操控手有切换观察视角的要求，考虑到电脑太笨重，所以放弃传统的键盘/键鼠操控模式，就地取材，采用微软的XBOX360手柄作为信号输入源
+
+由于智能车的操控手有切换观察视角的要求，考虑到电脑太笨重，所以放弃传统的键盘/键鼠操控模式，采用微软的XBOX360手柄作为信号输入源
+
+系统结构总框图
+
+![系统框架](系统框架.jpg)
 
 ### 说明
+
 本程序需要用到xinput.h头文件和xinput.lib，请确保电脑上有相关环境。微软官方介绍文档 https://docs.microsoft.com/zh-cn/windows/win32/api/xinput/nf-xinput-xinputgetstate?redirectedfrom=MSDN
 
 
@@ -47,7 +53,7 @@ XINPUT_STATE State;
 接下来就是检查各个按键和遥感的输入状态，发送相应的数据帧
 
 ```
-				ProcessFaceButtons(State);
+ProcessFaceButtons(State);
 				ProcessPadButtons(State);
 				ProcessShoulderButtons(State);
 				ProcessThumbButtons(State);
@@ -69,7 +75,11 @@ short LthumbPosX = State.Gamepad.sThumbLX / 10;
 	int Rdistance = RthumbPosX * RthumbPosX + RthumbPosY * RthumbPosY;
 	//std::cout << "Ldistance: " << Ldistance << std::endl;
 	if (Ldistance < 100000){}//死区
-	else if (Ldistance > 100000)
+	else if (Ldistance < 6000000 && Ldistance > 100000)
+	{
+		///
+	}
+	else if (Ldistance > 6000000)
 	{
 	    ///
 	}
