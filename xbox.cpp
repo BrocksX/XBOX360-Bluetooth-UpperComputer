@@ -1,4 +1,4 @@
-﻿#include <windows.h>
+#include <windows.h>
 #pragma comment(lib, "xinput.lib")
 #include <xinput.h>
 #include <iostream>
@@ -6,43 +6,24 @@
 using namespace std;
 #define KEY_DOWN(VK_NONAME) ((GetAsyncKeyState(VK_NONAME) & 0x8000) ? 1:0) 
 #define MAX_PLAYERS 4	//maximum of 4 players
-
-void ProcessFaceButtons(const XINPUT_STATE&);
-void ProcessPadButtons(const XINPUT_STATE&);
-void ProcessShoulderButtons(const XINPUT_STATE&);
-void ProcessThumbButtons(const XINPUT_STATE&);
-void ProcessTriggers(const XINPUT_STATE&, const int& PlayerID);
-void ProcessThumbs(const XINPUT_STATE&, const int& PlayerID);
-void ProcessBackAndStartButtons(const XINPUT_STATE&);
-void sendchar(char a);
-void printstate();
+void set_motorframe(const XINPUT_STATE&, const int& PlayerID);
+void set_steeringframe(const XINPUT_STATE&, const int& PlayerID);
+void set_otherframe(const XINPUT_STATE&, const int& PlayerID);
+void sendchar(int a);
 HANDLE hCom;
-time_t moveLast = 0;
-time_t now = 0;
-time_t shootlast = 0;
-bool shootingmode = 1;//1 半自动 0全自动
-short int shootinterval = 100;//间隔
-short int moveinterval = 100;
-short direction = 0;//1w 2a 3s 4d 5q 6e 
-bool isfire = 0;
-bool ishighspeed = 1;
-char c = 0;
-
 int main()
 {
 	cout << "操作说明： " << endl;
-	cout << "左摇杆位移   右摇杆云台   肩键旋转" << endl;
-	cout << "发射LT   点射b     爬楼梯a" << endl;
+	cout << "左摇杆位移   右摇杆云台   扳机键旋转" << endl;
+	cout << "发射RB   反转LB   撑杆 B X" << endl;
 	cout << endl;
-	hCom = CreateFile("\\\\.\\COM6", GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL); // 改COM口
-	if (hCom == INVALID_HANDLE_VALUE)
-	{
-		/*std::cout << "Port unavailable!" << std::endl;
-		return 0;*/
+	hCom = CreateFile("\\\\.\\COM10", GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL); // 改COM口
+	if (hCom == INVALID_HANDLE_VALUE) {
+		std::cout << "Port unavailable!" << std::endl;
 	}
 	DCB dcb;
 	GetCommState(hCom, &dcb);
-	dcb.BaudRate = 9600;
+	dcb.BaudRate = 115200;
 	dcb.ByteSize = DATABITS_8;
 	dcb.Parity = NOPARITY;
 	dcb.StopBits = ONESTOPBIT;
@@ -57,349 +38,163 @@ int main()
 	else {	//device is found
 		cout << "当前状态：" << endl;
 		while (1) {
-			if (XInputGetState(PlayerID, &State) == ERROR_SUCCESS) {	//make sure device is connected
-				now = clock();
-				if (now - moveLast > moveinterval && moveLast != 0 && direction)
-				{
-					direction = 0;
-					moveLast = now;
-					sendchar('p');
-				}
-				if (now - shootlast > shootinterval && shootlast != 0 && shootingmode && isfire)
-				{
-					isfire = 0;
-					shootlast = now;
-					sendchar('o');
-				}
-				ProcessFaceButtons(State);
-				//ProcessPadButtons(State);
-				ProcessShoulderButtons(State);
-				//ProcessThumbButtons(State);
-				ProcessTriggers(State, PlayerID);
-				ProcessThumbs(State, PlayerID);
-				//ProcessBackAndStartButtons(State);
-				//printstate();
+			if (XInputGetState(PlayerID, &State) == ERROR_SUCCESS) {//make sure device is connected
+				set_motorframe(State, PlayerID);
+				set_otherframe(State, PlayerID);
+				Sleep(10);
+				set_steeringframe(State, PlayerID);
 			}
 		}
 	}
 	return 0;
 }
-void sendchar(char a)
+void sendchar(int a)
 {
-	c = a;
+	char c = a;
 	BYTE byVal = (BYTE)c;
 	DWORD dwTransmitted;
 	WriteFile(hCom, &byVal, sizeof(byVal), &dwTransmitted, NULL);
 }
-void printstate()
-{
-	cout << "行进状态： ";
-	switch (direction)
-	{
-	case 0:
-		cout << "停止";
-		break;
-	case 1:
-		cout << "前进";
-		break;
-	case 2:
-		cout << "左";
-		break;
-	case 3:
-		cout << "后退";
-		break;
-	case 4:
-		cout << "右";
-		break;
-	case 5:
-		cout << "左转";
-		break;
-	case 6:
-		cout << "右转";
-		break;
-	default:
-		break;
-	}
-	cout << " 发射状态： ";
-	if (isfire) cout << "开火";
-	else  cout << "停火";
-	cout << " 速度： ";
-	if (ishighspeed) cout << "快";
-	else  cout << "慢";
-	cout << " 射击模式： ";
-	if (shootingmode) cout << "点射";
-	else  cout << "连射";
-	cout << "            \r";
-	Sleep(20);
-}
-
-
-//face buttons
-void ProcessFaceButtons(const XINPUT_STATE& State)
-{
-	//process the face buttons
-	if (State.Gamepad.wButtons & XINPUT_GAMEPAD_A) {
-		sendchar('j');
-	}
-
-	if (State.Gamepad.wButtons & XINPUT_GAMEPAD_B) {
-		isfire = 1;
-		shootingmode = 1;
-		sendchar('k');
-	}
-
-	if (State.Gamepad.wButtons & XINPUT_GAMEPAD_X) {
-	}
-
-	if (State.Gamepad.wButtons & XINPUT_GAMEPAD_Y) {
-	}
-}
-//dpad buttons
-void ProcessPadButtons(const XINPUT_STATE& State)
-{
-	//process the dpad buttons
-	if (State.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_UP) {
-		std::cout << "pressing: DPAD_UP\n";
-	}
-	if (State.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_DOWN) {
-		std::cout << "pressing: DPAD_DOWN\n";
-	}
-	if (State.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_LEFT) {
-		std::cout << "pressing: DPAD_LEFT\n";
-	}
-	if (State.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_RIGHT) {
-		std::cout << "pressing: DPAD_RIGHT\n";
-	}
-}
-//shoulder buttons
-void ProcessShoulderButtons(const XINPUT_STATE& State)
-{
-	if (State.Gamepad.wButtons & XINPUT_GAMEPAD_LEFT_SHOULDER) {
-		moveLast = clock();
-		if (direction != 5 )
-		{
-			sendchar('g');
-			direction = 5;
-		}
-	}
-	if (State.Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER) {
-		moveLast = clock();
-		if (direction != 6 )
-		{
-			sendchar('h');
-			direction = 6;
-		}
-	}
-}
-//thumb buttons
-void ProcessThumbButtons(const XINPUT_STATE& State)
-{
-	if (State.Gamepad.wButtons & XINPUT_GAMEPAD_LEFT_THUMB) {
-		std::cout << "pressing: LEFT_THUMB\n";
-	}
-	if (State.Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_THUMB) {
-		std::cout << "pressing: RIGHT_THUMB\n";
-	}
-}
-//process the triggers
-void ProcessTriggers(const XINPUT_STATE& State, const int& PlayerID)
+void set_otherframe(const XINPUT_STATE& State, const int& PlayerID)
 {
 	XINPUT_VIBRATION Vibration;
 	Vibration.wLeftMotorSpeed = 0;
 	Vibration.wRightMotorSpeed = 0;
-
-	//left trigger
-	if (State.Gamepad.bLeftTrigger > 0) {
-		Vibration.wLeftMotorSpeed = (WORD)(65535.0f * (State.Gamepad.bLeftTrigger / 200.0f));	//trigger values: 255 is full pressure, 0 no pressure.		
-	}
-	//right trigger
-	if (State.Gamepad.bRightTrigger > 0) {
-		Vibration.wRightMotorSpeed = (WORD)(65535.0f * (State.Gamepad.bRightTrigger / 200.0f));
-		isfire = 1;
-		shootingmode = 0;
-		sendchar('k');
-	}
-	else if (State.Gamepad.bRightTrigger <= 0 && shootingmode == 0)
+	int otherframe = 64;
+	if (State.Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER) //开火
 	{
-		isfire = 0;
-		sendchar('o');
+		otherframe += 48;
+		Vibration.wRightMotorSpeed = (WORD)(65535.0f);	//trigger values: 255 is full pressure, 0 no pressure.	
 	}
-
+	if (State.Gamepad.wButtons & XINPUT_GAMEPAD_LEFT_SHOULDER)     otherframe += 32; //反转
+	if (State.Gamepad.wButtons & XINPUT_GAMEPAD_B) 		otherframe += 12; //撑杆正传
+	if (State.Gamepad.wButtons & XINPUT_GAMEPAD_X)  otherframe += 8; //撑杆反传
+	if ((otherframe & 48) == 48) cout << "  开火";
+	else if ((otherframe & 48) == 32) cout << "  反转";
+	else cout << "  停火";
+	if ((otherframe & 12) == 12) cout << "  撑杆正传";
+	else if ((otherframe & 12) == 8) cout << "  撑杆反传";
+	sendchar(otherframe);
 	XInputSetState(PlayerID, &Vibration);
+	cout << "            \r";
 }
-//process the thumbsticks/joysticks
-void ProcessThumbs(const XINPUT_STATE& State, const int& PlayerID )
+void set_motorframe(const XINPUT_STATE& State, const int& PlayerID)
 {
-
-	short LthumbPosX = State.Gamepad.sThumbLX / 10; 
-	short LthumbPosY = State.Gamepad.sThumbLY / 10;
-	short RthumbPosX = State.Gamepad.sThumbRX / 10;
-	short RthumbPosY = State.Gamepad.sThumbRY / 10;
-	int Ldistance = LthumbPosX * LthumbPosX + LthumbPosY * LthumbPosY;
-	int Rdistance = RthumbPosX * RthumbPosX + RthumbPosY * RthumbPosY;
-	//std::cout << "Ldistance: " << Ldistance << std::endl;
-	if (Ldistance < 100000) {}
-	else if (Ldistance < 6000000 && Ldistance > 100000)
+	short LPosX = State.Gamepad.sThumbLX / 400;//死区+-10   75 40 20
+	short LPosY = State.Gamepad.sThumbLY / 400;//死区+-10   1000一档
+	short LeftTrigger = State.Gamepad.bLeftTrigger;
+	short RightTrigger = State.Gamepad.bRightTrigger;
+	int Ldistance = (LPosX * LPosX + LPosY * LPosY);//死区100   3000 6000
+	//std::cout << "LPosX: " << LPosX << "  Ldistance: "<< Ldistance <<std::endl;
+	int motorframe1 = 128;
+	int motorframe2 = 192;
+	int vx = 0, vy = 0, rotation = 0;
+	int ru = 0, ld = 0, lu = 0, rd = 0;
+	if (LeftTrigger < 5 && RightTrigger < 5)
 	{
-		moveLast = clock();
-		double ratio = abs(LthumbPosY / (LthumbPosX != 0 ? LthumbPosX : 1));
-		if (ratio > 1)
+		if (abs(LPosX) > 75)
 		{
-			if( LthumbPosY > 0 )
-			{
-				if (direction != 1 || ishighspeed != 0)
-				{
-					sendchar('q');
-					direction = 1;
-					ishighspeed = 0;
-				}
-			}
-			else
-			{
-				if (direction != 3 || ishighspeed != 0)
-				{
-					sendchar('w');
-					direction = 3;
-					ishighspeed = 0;
-				}
-			}
+			vx = LPosX > 0 ? 3 : -3;
+			vy = 0;
 		}
-		else if (ratio <=1)
+		else if (abs(LPosX) > 40)
 		{
-			if( LthumbPosX < 0 )
-			{
-				if (direction != 2 || ishighspeed != 0)
-				{
-					sendchar('e');
-					direction = 2;
-					ishighspeed = 0;
-				}
-			}
-			else 
-			{
-				if (direction != 4 || ishighspeed != 0)
-				{
-					sendchar('r');
-					direction = 4;
-					ishighspeed = 0;
-				}
-			}
-
+			vx = LPosX > 0 ? 2 : -2;
+			if (Ldistance > 6000) vy = LPosY > 0 ? 1 : -1;
 		}
+		else if (abs(LPosX) > 25)
+		{
+			vx = LPosX > 0 ? 1 : -1;
+			if (Ldistance > 6000) vy = LPosY > 0 ? 2 : -2;
+			else if (Ldistance > 3000) vy = LPosY > 0 ? 1 : -1;
+		}
+		else
+		{
+			vx = 0;
+			if (Ldistance > 6000) vy = LPosY > 0 ? 3 : -3;
+			else if (Ldistance > 3000) vy = LPosY > 0 ? 2 : -2;
+			else if (Ldistance > 100) vy = LPosY > 0 ? 1 : -1;
+			else vy = 0;
+		}
+		ru = vx + vy; ld = vx + vy;
+		lu = vy - vx; rd = vy - vx;
+		//cout << "lu: " << lu << " ru: " << ru << " ld: " << ld << " rd: " << rd << endl;
 	}
-	else if (Ldistance > 6000000)
+	else if (LeftTrigger > 5 && RightTrigger < 5)//240 120 5
 	{
-		moveLast = clock();
-		double ratio = abs(LthumbPosY / (LthumbPosX != 0 ? LthumbPosX : 1));
-		if (ratio > 1)
-		{
-			if (LthumbPosY > 0)
-			{
-				if (direction != 1 || ishighspeed != 1)
-				{
-					sendchar('t');
-					direction = 1;
-					ishighspeed = 1;
-				}
-			}
-			else
-			{
-				if (direction != 3 || ishighspeed != 1)
-				{
-					sendchar('y');
-					direction = 3;
-					ishighspeed = 1;
-				}
-			}
-		}
-		else if (ratio <= 1)
-		{
-			if (LthumbPosX < 0)
-			{
-				if (direction != 2 || ishighspeed != 1)
-				{
-					sendchar('u');
-					direction = 2;
-					ishighspeed = 1;
-				}
-			}
-			else 
-			{
-				if (direction != 4 || ishighspeed != 1)
-				{
-					sendchar('i');
-					direction = 4;
-					ishighspeed = 1;
-				}
-			}
-
-		}
+		if (LeftTrigger > 240) { lu = 3; ld = 3; ru = -3; rd = -3; rotation = 3; }
+		else if (LeftTrigger > 120) { lu = 2; ld = 2; ru = -2; rd = -2;  rotation = 2; }
+		else { lu = 1; ld = 1; ru = -1; rd = -1; rotation = 1; }
 	}
-	if (Rdistance < 200000) {}
-	else if (Rdistance < 6000000 && Rdistance > 200000)//slow
+	else if (LeftTrigger < 5 && RightTrigger > 5)
 	{
-		double ratio = abs(RthumbPosY / (RthumbPosX != 0 ? RthumbPosX : 1));
-		if (ratio > 1)
-		{
-			if (RthumbPosY > 0)
-			{
-				sendchar('a');
-			}
-			else
-			{
-				sendchar('s');
-			}
-		}
-		else if (ratio <= 1)
-		{
-			if (RthumbPosX < 0)
-			{
-				sendchar('d');
-			}
-			else
-			{
-				sendchar('f');
-			}
-		}
+		if (RightTrigger > 240) { lu = -3; ld = -3; ru = 3;  rd = 3; rotation = -3; }
+		else if (RightTrigger > 120) { lu = -2; ld = -2; ru = 2; rd = 2; rotation = -2; }
+		else { lu = -1; ld = -1; ru = 1; rd = 1; rotation = -1; }
 	}
-	else if (Rdistance > 6000000)
-	{
-		double ratio = abs(RthumbPosY / (RthumbPosX != 0 ? RthumbPosX : 1));
-		if (ratio > 1)
-		{
-			if (RthumbPosY > 0)
-			{
-				sendchar('a');
-				sendchar('a');
-			}
-			else
-			{
-				sendchar('s');
-				sendchar('s');
-			}
-		}
-		else if (ratio <= 1)
-		{
-			if (RthumbPosX < 0)
-			{
-				sendchar('d');
-				sendchar('d');
-			}
-			else
-			{
-				sendchar('f');
-				sendchar('f');
-			}
-		}
-	}
+	if (lu > 0)
+		motorframe1 += 32;
+	if (rd > 0)
+		motorframe2 += 4;
+	if (ld > 0)
+		motorframe1 += 4;
+	if (ru > 0)
+		motorframe2 += 32;
+	motorframe1 += (abs(lu) << 3);
+	motorframe1 += abs(ld);
+	motorframe2 += (abs(ru) << 3);
+	motorframe2 += abs(rd);
+	sendchar(motorframe1);
+	sendchar(motorframe2);
+	cout << "  Vx:  " << vx << "  Vy:  " << vy << "  Ro:  " << rotation;
 }
-//process back and start button
-void ProcessBackAndStartButtons(const XINPUT_STATE& State)
+void set_steeringframe(const XINPUT_STATE& State, const int& PlayerID)
 {
-	if (State.Gamepad.wButtons & XINPUT_GAMEPAD_BACK) {
-		std::cout << "pressing: BACK\n";
+	short RPosX = State.Gamepad.sThumbRX / 400;//死区+-10   75 40 25
+	short RPosY = State.Gamepad.sThumbRY / 400;//死区+-10   75 40 25
+	int Rdistance = (RPosX * RPosX + RPosY * RPosY);//死区50   3000  6000
+	//std::cout << "RPosY: " << RPosY << "  Rdistance: "<< Rdistance <<std::endl;
+	int vx = 0, vy = 0;
+	if (abs(RPosX) > 75)
+	{
+		vx = RPosX > 0 ? 3 : -3;
 	}
-	if (State.Gamepad.wButtons & XINPUT_GAMEPAD_START) {
-		std::cout << "pressing: START\n";
+	else if (abs(RPosX) > 40)
+	{
+		vx = RPosX > 0 ? 2 : -2;
+	}
+	else if (abs(RPosX) > 15)
+	{
+		vx = RPosX > 0 ? 1 : -1;
+	}
+	else
+	{
+		vx = 0;
+	}
+	if (abs(RPosY) > 75)
+	{
+		vy = RPosY > 0 ? 3 : -3;
+	}
+	else if (abs(RPosY) > 40)
+	{
+		vy = RPosY > 0 ? 2 : -2;
+	}
+	else if (abs(RPosY) > 15)
+	{
+		vy = RPosY > 0 ? 1 : -1;
+	}
+	else
+	{
+		vy = 0;
+	}
+	std::cout << "  Sx:  " << vx << "  Sy:  " << vy;
+	if (vx != 0 || vy != 0)
+	{
+		int steeringframe = 0;
+		if (vx > 0)  steeringframe += 32;
+		if (vy > 0)  steeringframe += 4;
+		steeringframe += (abs(vx) << 3);
+		steeringframe += abs(vy);
+		sendchar(steeringframe);
 	}
 }
